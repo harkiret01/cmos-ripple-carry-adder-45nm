@@ -1,0 +1,141 @@
+; ---- schematic generator helpers (Lab 2) ----
+;; hrLib is set in config.il
+envSetVal("license" "VSEL_UseNextLicense" 'string "always")
+
+procedure(hrOpenW(cell view vtype)
+  let((cv)
+    cv = dbOpenCellViewByType(hrLib cell view vtype "w")
+    unless(cv cv = dbOpenCellViewByType(hrLib cell view vtype "a"))
+    foreach(x cv~>instances dbDeleteObject(x))
+    foreach(x cv~>shapes dbDeleteObject(x))
+    cv))
+
+procedure(hrStub(cv x y dir net)
+  let((x2 y2 w)
+    x2 = x  y2 = y
+    case(dir ("L" x2 = x - 0.25) ("R" x2 = x + 0.25) ("U" y2 = y + 0.25) ("D" y2 = y - 0.25))
+    w = schCreateWire(cv "draw" "full" list(x:y x2:y2) 0.0625 0.0625 0.0)
+    schCreateWireLabel(cv car(w) x2:y2 net "lowerCenter" "R0" "stick" 0.0625 nil)))
+
+procedure(hrPlace(cv lib cell name x y nets params)
+  let((m inst)
+    m = dbOpenCellViewByType(lib cell "symbol" nil "r")
+    inst = if(params
+      dbCreateParamInst(cv m name x:y "R0" 1 params)
+      dbCreateInst(cv m name x:y "R0"))
+    foreach(tm m~>terminals
+      let((bb cx cy dir net)
+        bb = car(tm~>pins)~>fig~>bBox
+        cx = (xCoord(car(bb)) + xCoord(cadr(bb))) / 2
+        cy = (yCoord(car(bb)) + yCoord(cadr(bb))) / 2
+        net = cadr(assoc(tm~>name nets))
+        dir = cond(
+          (member(tm~>name '("vdd" "Vdd" "PLUS")) "U")
+          (member(tm~>name '("gnd" "GND" "MINUS")) "D")
+          (tm~>direction == "output" "R")
+          (t "L"))
+        when(net hrStub(cv x+cx y+cy dir net))))
+    inst))
+
+procedure(hrPin(cv name dir x y)
+  let((m side)
+    m = dbOpenCellViewByType("basic" case(dir ("input" "ipin") ("output" "opin") (t "iopin")) "symbol" nil "r")
+    schCreatePin(cv m name dir nil x:y "R0")
+    side = if(dir == "output" "L" "R")
+    hrStub(cv x y side name)))
+
+procedure(hrFinish(cv)
+  let((r)
+    r = errset(schCheck(cv))
+    dbSave(cv)
+    printf("SAVED %s/%s check=%L\n" cv~>cellName cv~>viewName r)))
+
+procedure(hrMakeSym(cell)
+  schViewToView(hrLib cell hrLib cell "schematic" "symbol" "schSchemToPinList" "schPinListToSymbol")
+  printf("SYMBOL %s done\n" cell))
+
+; ---- netlist dump to verify ----
+procedure(hrDump(cell)
+  let((s)
+    s = dbOpenCellViewByType(hrLib cell "schematic" nil "r")
+    printf("== %s\n" cell)
+    foreach(si s~>instances
+      unless(member(si~>cellName '("ipin" "opin" "iopin"))
+        printf("  %s %s: " si~>name si~>cellName)
+        foreach(ip si~>instTerms printf("%s=%s " ip~>name ip~>net~>name))
+        printf("\n")))))
+
+; ---- part (a) full adder: P and Q are cell names ----
+procedure(hrFA_a(cell pcell qcell)
+  let((cv)
+    cv = hrOpenW(cell "schematic" "schematic")
+    hrPlace(cv hrLib "xor" "X1" 0 2 '(("A" "A") ("B" "B") ("out" "x1") ("vdd" "vdd") ("gnd" "gnd")) nil)
+    hrPlace(cv hrLib "xor" "X2" 4 2 '(("A" "x1") ("B" "Cin") ("out" "S") ("vdd" "vdd") ("gnd" "gnd")) nil)
+    hrPlace(cv hrLib pcell "GP" 4 -0.5 '(("in_a" "Cin") ("in_b" "x1") ("out_a" "np") ("vdd" "vdd") ("GND" "gnd")) nil)
+    hrPlace(cv hrLib "NAND_1X" "GN" 4 -3 '(("in_a" "A") ("in_b" "B") ("out_a" "nab") ("vdd" "vdd") ("GND" "gnd")) nil)
+    hrPlace(cv hrLib qcell "GQ" 8 -1.5 '(("in_a" "np") ("in_b" "nab") ("out_a" "Cout") ("vdd" "vdd") ("GND" "gnd")) nil)
+    hrPin(cv "A" "input" -3 2) hrPin(cv "B" "input" -3 1.5) hrPin(cv "Cin" "input" -3 1)
+    hrPin(cv "vdd" "inputOutput" -3 0) hrPin(cv "gnd" "inputOutput" -3 -0.5)
+    hrPin(cv "S" "output" 13 2) hrPin(cv "Cout" "output" 13 -1.5)
+    hrFinish(cv)
+    hrMakeSym(cell)))
+
+; ---- part (b) full adder: NAND2_1X + INV_1X only ----
+procedure(hrFA_b(cell)
+  let((cv)
+    cv = hrOpenW(cell "schematic" "schematic")
+    hrPlace(cv hrLib "xor" "X1" 0 2 '(("A" "A") ("B" "B") ("out" "x1") ("vdd" "vdd") ("gnd" "gnd")) nil)
+    hrPlace(cv hrLib "xor" "X2" 4 2 '(("A" "x1") ("B" "Cin") ("out" "S") ("vdd" "vdd") ("gnd" "gnd")) nil)
+    hrPlace(cv hrLib "NAND_1X" "N1" 0 -1 '(("in_a" "A") ("in_b" "B") ("out_a" "n1") ("vdd" "vdd") ("GND" "gnd")) nil)
+    hrPlace(cv hrLib "NAND_1X" "N2" 0 -3.5 '(("in_a" "Cin") ("in_b" "A") ("out_a" "n2") ("vdd" "vdd") ("GND" "gnd")) nil)
+    hrPlace(cv hrLib "NAND_1X" "N3" 4 -2 '(("in_a" "n2") ("in_b" "n1") ("out_a" "n3") ("vdd" "vdd") ("GND" "gnd")) nil)
+    hrPlace(cv hrLib "INV" "I1" 7.5 -2 '(("in_a" "n3") ("out_a" "n4") ("Vdd" "vdd") ("GND" "gnd")) nil)
+    hrPlace(cv hrLib "NAND_1X" "N4" 4 -5 '(("in_a" "Cin") ("in_b" "B") ("out_a" "n5") ("vdd" "vdd") ("GND" "gnd")) nil)
+    hrPlace(cv hrLib "NAND_1X" "N5" 11 -3 '(("in_a" "n4") ("in_b" "n5") ("out_a" "Cout") ("vdd" "vdd") ("GND" "gnd")) nil)
+    hrPin(cv "A" "input" -4 2) hrPin(cv "B" "input" -4 1.5) hrPin(cv "Cin" "input" -4 1)
+    hrPin(cv "vdd" "inputOutput" -4 0) hrPin(cv "gnd" "inputOutput" -4 -0.5)
+    hrPin(cv "S" "output" 16 2) hrPin(cv "Cout" "output" 16 -3)
+    hrFinish(cv)
+    hrMakeSym(cell)))
+
+; ---- DUT testbench: INV_1X on A,B,Cin ; INV_2X on S,Cout ----
+procedure(hrFA_tb(tb dut)
+  let((cv)
+    cv = hrOpenW(tb "schematic" "schematic")
+    hrPlace(cv hrLib dut "DUT" 0 0 '(("A" "dA") ("B" "dB") ("Cin" "dC") ("S" "S") ("Cout" "Cout") ("vdd" "vdd") ("gnd" "gnd!")) nil)
+    hrPlace(cv hrLib "INV" "DRVA" -6 3 '(("in_a" "srcA") ("out_a" "dA") ("Vdd" "vdd") ("GND" "gnd!")) nil)
+    hrPlace(cv hrLib "INV" "DRVB" -6 1 '(("in_a" "srcB") ("out_a" "dB") ("Vdd" "vdd") ("GND" "gnd!")) nil)
+    hrPlace(cv hrLib "INV" "DRVC" -6 -1 '(("in_a" "srcC") ("out_a" "dC") ("Vdd" "vdd") ("GND" "gnd!")) nil)
+    hrPlace(cv hrLib "INV_2X" "LDS" 7 2 '(("in_a" "S") ("out_a" "S_ld") ("Vdd" "vdd") ("GND" "gnd!")) nil)
+    hrPlace(cv hrLib "INV_2X" "LDC" 7 -1 '(("in_a" "Cout") ("out_a" "Cout_ld") ("Vdd" "vdd") ("GND" "gnd!")) nil)
+    hrPlace(cv "analogLib" "vdc" "VDD" -12 3 '(("PLUS" "vdd") ("MINUS" "gnd!")) list(list("vdc" "string" "1")))
+    hrPlace(cv "analogLib" "vdc" "VA" -10 3 '(("PLUS" "srcA") ("MINUS" "gnd!")) list(list("vdc" "string" "1")))
+    hrPlace(cv "analogLib" "vdc" "VB" -10 0 '(("PLUS" "srcB") ("MINUS" "gnd!")) list(list("vdc" "string" "0")))
+    hrPlace(cv "analogLib" "vpulse" "VC" -10 -3 '(("PLUS" "srcC") ("MINUS" "gnd!"))
+      list(list("v1" "string" "1") list("v2" "string" "0") list("td" "string" "1n") list("tr" "string" "10p")
+           list("tf" "string" "10p") list("pw" "string" "1n") list("per" "string" "4n")))
+    hrFinish(cv)))
+
+; ---- OCEAN transient + delay measurement ----
+;; hrModel is set in config.il
+procedure(hrX(w edge after) cross(clip(w after 4n) 0.5 1 edge))
+procedure(hrSimFA(tb view)
+  let((c co s t1 t2 cor cof sf sr)
+    simulator('spectre)
+    design(hrLib tb view)
+    resultsDir(strcat(strcat(hrWork "/sim/") tb "_" view))
+    modelFile(list(hrModel "mc"))
+    analysis('tran ?stop "3.5n" ?errpreset "conservative")
+    temp(27)
+    save('all)
+    run()
+    selectResult('tran)
+    c = VT("/dC") co = VT("/Cout") s = VT("/S")
+    t1 = cross(c 0.5 1 "rising")  t2 = cross(c 0.5 1 "falling")
+    cor = hrX(co "rising" t1)  sf = hrX(s "falling" t1)
+    cof = hrX(co "falling" t2) sr = hrX(s "rising" t2)
+    printf("RESULT %s %s: tCin_r=%.4gps tCin_f=%.4gps\n" tb view t1*1e12 t2*1e12)
+    printf("  Cout tPLH=%.4g ps  tPHL=%.4g ps  avg=%.4g ps\n" (cor-t1)*1e12 (cof-t2)*1e12 ((cor-t1)+(cof-t2))*0.5e12)
+    printf("  S    tPHL=%.4g ps  tPLH=%.4g ps  avg=%.4g ps\n" (sf-t1)*1e12 (sr-t2)*1e12 ((sf-t1)+(sr-t2))*0.5e12)
+    list((cor-t1) (cof-t2) (sf-t1) (sr-t2))))
+printf("gen.il loaded\n")

@@ -1,0 +1,9 @@
+toggled_input,direction,other_input,output_edge,delay_ps
+B,fall,A=1,rise,28.07
+A,fall,B=0,fall,37.79
+B,rise,A=0,rise,30.52
+A,rise,B=1,fall,34.58
+A,fall,B=1,rise,23.79
+B,fall,A=0,fall,35.10
+A,rise,B=0,rise,34.73
+B,rise,A=1,fall,36.72

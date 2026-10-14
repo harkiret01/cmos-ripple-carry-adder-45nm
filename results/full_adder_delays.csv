@@ -1,0 +1,6 @@
+design,view,cout_tplh_ps,cout_tphl_ps,cout_avg_ps,sum_tphl_ps,sum_tplh_ps,sum_avg_ps
+FA_P2Q1 (P=NAND2_2X Q=NAND2_1X),schematic,35.78,37.85,36.82,46.85,34.40,40.63
+FA_P1Q2 (P=NAND2_1X Q=NAND2_2X),schematic,41.07,39.95,40.51,43.32,31.01,37.16
+FA_P2Q2 (P=NAND2_2X Q=NAND2_2X),schematic,37.30,38.52,37.91,46.51,34.03,40.27
+FA_b (NAND2_1X + INV_1X carry),schematic,40.22,42.78,41.50,44.38,33.13,38.76
+FA_P2Q1 (final),extracted layout,66.89,72.15,69.52,72.98,59.09,66.03

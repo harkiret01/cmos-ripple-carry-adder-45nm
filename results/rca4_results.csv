@@ -1,0 +1,7 @@
+test,A,B,C0,expected_C4_S,simulated_C4_S
+functional,15,15,1,1_1111,1_1111
+functional,14,1,0,0_1111,0_1111
+functional,12,3,1,1_0000,1_0000
+carry_chain (A=1111 B=0000 C0 toggles),C0->C4 tPLH 164.21 ps,C0->C4 tPHL 180.93 ps,avg 172.6 ps,,
+carry_chain (A=1111 B=0000 C0 toggles),C0->S3 tPHL 167.99 ps,C0->S3 tPLH 178.20 ps,avg 173.1 ps,,
+internal carry arrival after C0 rise,C1 +41.3 ps,C2 +84.2 ps,C3 +127.0 ps,,
