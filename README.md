@@ -227,7 +227,3 @@ The gpdk045 PDK and Cadence libraries are licensed and **not included**.
 4. Post-layout: `load("skill/sim/postlayout_config.il")  hrMakeExtractedConfig("FA_P2Q1_tb")  hrSimFA("FA_P2Q1_tb" "config")`
 
 The batch DRC/LVS/QRC scripts reuse the control files that the Pegasus/Quantus GUIs write for one reference cell; point `DRC_REF`, `LVS_REF` and `QRC_REF` at your own run directories.
-
----
-
-*Course project for EE 477 (MOS VLSI Circuit Design), University of Southern California. SKILL automation and documentation were developed with AI assistance (Claude); design decisions and results were reviewed by the author.*
